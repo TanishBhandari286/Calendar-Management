@@ -10,16 +10,5 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Response interceptor: redirect to login on 401
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      window.location.href = '/'
-    }
-    return Promise.reject(error)
-  }
-)
-
 export default api
 
