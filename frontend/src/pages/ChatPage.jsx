@@ -1,45 +1,48 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import CalendarSidebar from '../components/CalendarSidebar'
 import ChatBubble from '../components/ChatBubble'
 import TypingIndicator from '../components/TypingIndicator'
 import api from '../api/client'
-import { format } from 'date-fns'
 
 const EXAMPLE_PROMPTS = [
-  { emoji: '📚', text: 'Schedule a DSA study block today 3-4pm' },
+  { emoji: '📚', text: 'Schedule a DSA study block today 3–4 pm' },
   { emoji: '🗑️', text: 'Cancel the last event I created' },
   { emoji: '📊', text: 'How many hours have I studied DSA this week?' },
-  { emoji: '📅', text: "What's on my schedule tomorrow?" },
+  { emoji: '📅', text: "What's on my calendar tomorrow?" },
 ]
 
 const QUICK_PROMPTS = [
-  "What's today's schedule?",
-  "Book a meeting tomorrow 2-3pm",
+  "Today's schedule",
+  "Book a meeting tomorrow 2–3 pm",
   "Study hours this week",
   "Free slots today",
 ]
 
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <line x1="22" y1="2" x2="11" y2="13"/>
+      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+  )
+}
+
 export default function ChatPage() {
-  const [messages, setMessages] = useState([])
-  const [input, setInput] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
+  const [messages, setMessages]       = useState([])
+  const [input, setInput]             = useState('')
+  const [isTyping, setIsTyping]       = useState(false)
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const [sidebarRefresh, setSidebarRefresh] = useState(0)
   const messagesEndRef = useRef(null)
-  const textareaRef = useRef(null)
-  const sidebarRef = useRef(null)
+  const textareaRef    = useRef(null)
 
-  // Load chat history on mount
+  // Load history on mount
   useEffect(() => {
     api.get('/chat/history?limit=50')
-      .then(res => {
-        const history = res.data.map(m => ({
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp,
-        }))
-        setMessages(history)
-      })
+      .then(res => setMessages(res.data.map(m => ({
+        role: m.role, content: m.content, timestamp: m.timestamp,
+      }))))
       .catch(() => {})
       .finally(() => setHistoryLoaded(true))
   }, [])
@@ -50,57 +53,33 @@ export default function ChatPage() {
   }, [messages, isTyping])
 
   const sendMessage = useCallback(async (text) => {
-    const msg = (text || input).trim()
+    const msg = (text ?? input).trim()
     if (!msg || isTyping) return
 
-    const userMessage = {
-      role: 'user',
-      content: msg,
-      timestamp: new Date().toISOString(),
-    }
-
-    setMessages(prev => [...prev, userMessage])
+    setMessages(prev => [...prev, { role: 'user', content: msg, timestamp: new Date().toISOString() }])
     setInput('')
     setIsTyping(true)
-
-    // Auto-resize textarea
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '52px'
-    }
+    if (textareaRef.current) textareaRef.current.style.height = '48px'
 
     try {
       const res = await api.post('/chat', { message: msg })
-      const aiMessage = {
-        role: 'model',
-        content: res.data.response,
-        timestamp: new Date().toISOString(),
-      }
-      setMessages(prev => [...prev, aiMessage])
-      // Refresh sidebar events after any calendar operation
+      setMessages(prev => [...prev, { role: 'model', content: res.data.response, timestamp: new Date().toISOString() }])
       setSidebarRefresh(n => n + 1)
     } catch (err) {
-      const errMsg = err.response?.data?.detail || 'Something went wrong. Please try again.'
-      setMessages(prev => [...prev, {
-        role: 'model',
-        content: `❌ ${errMsg}`,
-        timestamp: new Date().toISOString(),
-      }])
+      const detail = err.response?.data?.detail || 'Something went wrong.'
+      setMessages(prev => [...prev, { role: 'model', content: `❌ ${detail}`, timestamp: new Date().toISOString() }])
     } finally {
       setIsTyping(false)
     }
   }, [input, isTyping])
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  const handleTextareaChange = (e) => {
+  const handleChange = (e) => {
     setInput(e.target.value)
-    // Auto-resize
-    e.target.style.height = '52px'
+    e.target.style.height = '48px'
     e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
   }
 
@@ -111,124 +90,149 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="chat-layout">
-      {/* Sidebar */}
+    <div className="flex h-screen bg-black text-white overflow-hidden">
+
+      {/* ── Sidebar ── */}
       <CalendarSidebar
-        ref={sidebarRef}
-        key={sidebarRefresh}
-        onSendPrompt={(prompt) => sendMessage(prompt)}
+        refreshKey={sidebarRefresh}
+        onSendPrompt={(p) => sendMessage(p)}
       />
 
-      {/* Main chat area */}
-      <main className="chat-main">
+      {/* ── Main chat area ── */}
+      <main className="flex flex-1 flex-col overflow-hidden">
+
         {/* Top bar */}
-        <header className="chat-topbar">
-          <div className="chat-topbar-icon">🤖</div>
-          <div>
-            <div className="chat-topbar-title">AI Calendar Assistant</div>
-            <div className="chat-topbar-sub">Powered by Gemini 2.0 Flash</div>
+        <header className="flex items-center gap-3 border-b border-neutral-800 bg-black px-6 py-3.5 shrink-0">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-white text-sm shrink-0">✦</div>
+          <div className="flex-1">
+            <div className="text-sm font-bold font-display">AI Calendar Assistant</div>
+            <div className="text-[10px] text-neutral-500">Gemini 2.0 Flash · Google Calendar</div>
           </div>
-          <div className="online-dot" title="Connected" />
+          {/* Online dot */}
+          <div className="flex items-center gap-2 text-[10px] text-neutral-600">
+            <div className="size-1.5 rounded-full bg-green-400 animate-pulse-glow" />
+            Online
+          </div>
           <button
             onClick={clearHistory}
-            style={{
-              marginLeft: '8px',
-              padding: '6px 12px',
-              background: 'var(--bg-glass)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              color: 'var(--text-muted)',
-              fontSize: '0.75rem',
-              transition: 'all 0.2s',
-            }}
-            title="Clear history"
+            className="ml-2 rounded-lg border border-neutral-800 px-3 py-1.5 text-[11px] text-neutral-500
+                       transition-colors hover:border-neutral-700 hover:text-neutral-300"
           >
             Clear
           </button>
         </header>
 
         {/* Messages */}
-        <div className="messages-container">
-          {historyLoaded && messages.length === 0 && (
-            <div className="welcome-state">
-              <div className="welcome-icon">🗓️</div>
-              <h2 className="welcome-title">Ready to Plan Your Day?</h2>
-              <p className="welcome-sub">
-                I can create, update, delete, and query your Google Calendar events.
-                Just tell me what you need in plain English!
-              </p>
-              <div className="example-prompts">
-                {EXAMPLE_PROMPTS.map((p, i) => (
-                  <button
-                    key={i}
-                    className="example-card"
-                    onClick={() => sendMessage(p.text)}
-                  >
-                    <div className="example-emoji">{p.emoji}</div>
-                    <div className="example-text">"{p.text}"</div>
-                  </button>
-                ))}
-              </div>
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6">
+
+          {/* Welcome state */}
+          <AnimatePresence>
+            {historyLoaded && messages.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex h-full flex-col items-center justify-center text-center px-4"
+              >
+                <motion.div
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="mb-6 flex size-16 items-center justify-center rounded-2xl bg-white text-black text-3xl shadow-[0_0_40px_rgba(255,255,255,0.1)]"
+                >
+                  🗓️
+                </motion.div>
+                <h2 className="mb-2 text-xl font-bold font-display">Ready to plan your day?</h2>
+                <p className="mb-8 max-w-md text-sm text-neutral-500 leading-relaxed">
+                  Tell me what to schedule, cancel, or query. I remember everything we discuss.
+                </p>
+                <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
+                  {EXAMPLE_PROMPTS.map((p, i) => (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                      onClick={() => sendMessage(p.text)}
+                      className="flex flex-col gap-1.5 rounded-xl border border-neutral-800 bg-neutral-950
+                                 p-4 text-left text-sm transition-all hover:border-neutral-700
+                                 hover:bg-neutral-900 hover:-translate-y-0.5"
+                    >
+                      <span className="text-xl">{p.emoji}</span>
+                      <span className="text-xs text-neutral-400 leading-snug">"{p.text}"</span>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Chat messages */}
+          {messages.length > 0 && (
+            <div className="space-y-4 max-w-3xl mx-auto w-full">
+              {messages.map((msg, i) => (
+                <ChatBubble
+                  key={i}
+                  role={msg.role}
+                  content={msg.content}
+                  timestamp={msg.timestamp}
+                />
+              ))}
+              {isTyping && <TypingIndicator />}
             </div>
           )}
 
-          {messages.map((msg, i) => (
-            <ChatBubble
-              key={i}
-              role={msg.role}
-              content={msg.content}
-              timestamp={msg.timestamp}
-            />
-          ))}
-
-          {isTyping && <TypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input area */}
-        <div className="chat-input-area">
-          {/* Quick prompts */}
-          <div className="quick-prompts">
+        <div className="border-t border-neutral-800 bg-black px-6 py-4 shrink-0">
+          {/* Quick prompt chips */}
+          <div className="mb-3 flex flex-wrap gap-2">
             {QUICK_PROMPTS.map((p, i) => (
               <button
                 key={i}
-                className="quick-prompt-btn"
                 onClick={() => sendMessage(p)}
                 disabled={isTyping}
+                className="rounded-full border border-neutral-800 bg-neutral-950 px-3 py-1 text-[11px]
+                           text-neutral-500 transition-all hover:border-neutral-700 hover:text-neutral-300
+                           disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {p}
               </button>
             ))}
           </div>
 
-          <div className="input-row">
+          {/* Text input row */}
+          <div className="flex items-end gap-3">
             <textarea
               ref={textareaRef}
-              className="chat-textarea"
-              placeholder="Ask me anything... e.g. 'Schedule a gym session tomorrow 7-8am'"
-              value={input}
-              onChange={handleTextareaChange}
-              onKeyDown={handleKeyDown}
-              rows={1}
               id="chat-input"
+              rows={1}
+              value={input}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask me anything… e.g. 'Schedule gym tomorrow 7–8 am'"
+              className="flex-1 resize-none rounded-xl border border-neutral-800 bg-neutral-950
+                         px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none
+                         transition-colors focus:border-neutral-600 min-h-[48px] max-h-[140px]
+                         scrollbar-thin"
             />
             <button
-              className="btn-send"
+              id="btn-send"
               onClick={() => sendMessage()}
               disabled={!input.trim() || isTyping}
-              id="btn-send"
-              title="Send (Enter)"
+              className="flex size-12 items-center justify-center rounded-xl bg-white text-black
+                         transition-all hover:-translate-y-0.5 hover:bg-neutral-200
+                         hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]
+                         disabled:opacity-30 disabled:cursor-not-allowed disabled:translate-y-0 shrink-0"
             >
-              {isTyping
-                ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              }
+              <SendIcon />
             </button>
           </div>
-          <div className="input-hint">
-            Press <kbd style={{ padding: '1px 5px', background: 'var(--bg-glass)', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '0.7rem' }}>Enter</kbd> to send &nbsp;·&nbsp;
-            <kbd style={{ padding: '1px 5px', background: 'var(--bg-glass)', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '0.7rem' }}>Shift+Enter</kbd> for newline
-          </div>
+          <p className="mt-2 text-center text-[10px] text-neutral-700">
+            <kbd className="rounded border border-neutral-800 px-1 py-0.5">Enter</kbd> to send ·{' '}
+            <kbd className="rounded border border-neutral-800 px-1 py-0.5">Shift+Enter</kbd> for newline
+          </p>
         </div>
       </main>
     </div>
