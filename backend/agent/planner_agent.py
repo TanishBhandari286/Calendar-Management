@@ -107,7 +107,7 @@ async def run_agent(user_message: str, user: User, db: AsyncSession) -> str:
 
     # Initialize Gemini model with tools
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-1.5-flash",
         system_instruction=system_instruction,
         tools=tools,
     )

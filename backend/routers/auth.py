@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from database import get_db
-from models import User, GoogleToken
+from models import User, GoogleToken, OAuthState
 from auth.google_oauth import get_google_auth_url, exchange_code_for_tokens, get_user_info
 from auth.jwt_handler import create_access_token, get_current_user
 from config import get_settings
@@ -14,15 +14,16 @@ from config import get_settings
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Temporary state store (in production, use Redis or DB)
-_state_store: dict[str, bool] = {}
-
 
 @router.get("/google")
-async def google_login():
+async def google_login(db: AsyncSession = Depends(get_db)):
     """Redirect user to Google OAuth2 consent screen."""
     state = secrets.token_urlsafe(16)
-    _state_store[state] = True
+    # Store state in database
+    oauth_state = OAuthState(state=state)
+    db.add(oauth_state)
+    await db.commit()
+    
     auth_url = get_google_auth_url(state=state)
     return RedirectResponse(url=auth_url)
 
@@ -34,9 +35,15 @@ async def google_callback(
     db: AsyncSession = Depends(get_db),
 ):
     """Handle Google OAuth2 callback, upsert user, and set JWT cookie."""
-    if state and state not in _state_store:
-        raise HTTPException(status_code=400, detail="Invalid OAuth state")
-    _state_store.pop(state, None)
+    # Validate state from database
+    if state:
+        result = await db.execute(select(OAuthState).where(OAuthState.state == state))
+        oauth_state = result.scalar_one_or_none()
+        if not oauth_state:
+            raise HTTPException(status_code=400, detail="Invalid OAuth state")
+        # Delete the state after use
+        await db.delete(oauth_state)
+        await db.commit()
 
     # Exchange code for tokens
     token_data = await exchange_code_for_tokens(code)

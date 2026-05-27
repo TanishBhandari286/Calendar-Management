@@ -4,6 +4,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
 
+class OAuthState(Base):
+    __tablename__ = "oauth_states"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    state: Mapped[str] = mapped_column(String(256), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class User(Base):
     __tablename__ = "users"
 
