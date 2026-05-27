@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import CalendarSidebar from '../components/CalendarSidebar'
 import ChatBubble from '../components/ChatBubble'
@@ -103,6 +104,16 @@ export default function ChatPage() {
 
         {/* Top bar */}
         <header className="flex items-center gap-3 border-b border-neutral-800 bg-black px-6 py-3.5 shrink-0">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-1.5 text-xs text-neutral-600 hover:text-white transition-colors mr-1"
+          >
+            <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Dashboard
+          </Link>
+          <div className="h-4 w-px bg-neutral-800" />
           <div className="flex size-8 items-center justify-center rounded-lg bg-white text-sm shrink-0">✦</div>
           <div className="flex-1">
             <div className="text-sm font-bold font-display">AI Calendar Assistant</div>

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
 from config import get_settings
-from routers import auth, chat, calendar
+from routers import auth, chat, calendar, goals
 
 settings = get_settings()
 
@@ -43,6 +43,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(calendar.router)
+app.include_router(goals.router)
 
 
 @app.get("/")

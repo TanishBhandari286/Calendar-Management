@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, func
+from sqlalchemy import String, Integer, Float, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
@@ -24,6 +24,7 @@ class User(Base):
 
     token: Mapped["GoogleToken"] = relationship("GoogleToken", back_populates="user", uselist=False, cascade="all, delete-orphan")
     messages: Mapped[list["ChatMessage"]] = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan", order_by="ChatMessage.timestamp")
+    goals: Mapped[list["UserGoal"]] = relationship("UserGoal", back_populates="user", cascade="all, delete-orphan")
 
 
 class GoogleToken(Base):
@@ -50,3 +51,18 @@ class ChatMessage(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="messages")
+
+
+class UserGoal(Base):
+    __tablename__ = "user_goals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(128))          # e.g. "DSA Study"
+    keyword: Mapped[str] = mapped_column(String(64))         # matched against event titles
+    target_hours: Mapped[float] = mapped_column(Float, default=10.0)
+    color: Mapped[str] = mapped_column(String(16), default="#FF453A")
+    emoji: Mapped[str] = mapped_column(String(8), default="📚")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", back_populates="goals")

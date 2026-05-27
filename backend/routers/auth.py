@@ -89,8 +89,8 @@ async def google_callback(
     # Issue JWT
     jwt_token = create_access_token(user.id, user.email)
 
-    # Redirect to frontend with cookie
-    response = RedirectResponse(url=f"{settings.frontend_url}/chat")
+    # Redirect to frontend dashboard with cookie
+    response = RedirectResponse(url=f"{settings.frontend_url}/dashboard")
     cookie_kwargs = dict(
         key="access_token",
         value=jwt_token,

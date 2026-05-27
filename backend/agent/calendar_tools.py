@@ -234,7 +234,44 @@ def make_calendar_tools(access_token: str, refresh_token: str | None, token_expi
         service.events().delete(calendarId="primary", eventId=event_id).execute()
         return f"🗑️ Event deleted: '{title}' (ID: {event_id})"
 
+    def check_slot_availability(
+        start_datetime: str,
+        end_datetime: str,
+    ) -> str:
+        """
+        Check if a time slot is free in the user's Google Calendar before creating an event.
+        ALWAYS call this before create_calendar_event when the user specifies a time.
+
+        Args:
+            start_datetime: Proposed start in ISO 8601 (e.g., "2024-12-25T15:00:00+05:30").
+            end_datetime: Proposed end in ISO 8601 (e.g., "2024-12-25T16:00:00+05:30").
+
+        Returns:
+            A string indicating free/busy status and any conflicting events.
+        """
+        service = _build_calendar_service(access_token, refresh_token, token_expiry)
+        events_result = service.events().list(
+            calendarId="primary",
+            timeMin=start_datetime,
+            timeMax=end_datetime,
+            singleEvents=True,
+            orderBy="startTime",
+        ).execute()
+        conflicts = events_result.get("items", [])
+
+        if not conflicts:
+            return f"✅ Slot is FREE: {start_datetime} → {end_datetime}. You can create the event."
+
+        lines = [f"⚠️ SLOT IS BUSY — {len(conflicts)} conflict(s) found:"]
+        for ev in conflicts:
+            s = ev["start"].get("dateTime", ev["start"].get("date", "?"))
+            e = ev["end"].get("dateTime", ev["end"].get("date", "?"))
+            lines.append(f"  • {ev.get('summary', 'Untitled')} | {s} → {e}")
+        lines.append("Suggest alternative times or ask user how to proceed.")
+        return "\n".join(lines)
+
     return [
+        check_slot_availability,
         create_calendar_event,
         list_calendar_events,
         get_events_summary,
