@@ -43,7 +43,7 @@ async def google_callback(
     access_token = token_data["access_token"]
     refresh_token = token_data.get("refresh_token")
     expires_in = token_data.get("expires_in", 3600)
-    token_expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    token_expiry = datetime.now() + timedelta(seconds=expires_in)
 
     # Get user profile
     user_info = await get_user_info(access_token)
